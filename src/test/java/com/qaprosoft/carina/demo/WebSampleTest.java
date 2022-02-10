@@ -15,19 +15,31 @@
  */
 package com.qaprosoft.carina.demo;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Base64;
 import java.util.List;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.DesiredCapabilities;
 import org.testng.Assert;
+
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 
 import com.qaprosoft.carina.core.foundation.IAbstractTest;
+
 import com.zebrunner.agent.core.annotation.TestLabel;
 import com.qaprosoft.carina.core.foundation.utils.ownership.MethodOwner;
 import com.qaprosoft.carina.core.foundation.utils.tag.Priority;
 import com.qaprosoft.carina.core.foundation.utils.tag.TestPriority;
+import com.qaprosoft.carina.core.foundation.webdriver.core.capability.impl.desktop.ChromeCapabilities;
 import com.qaprosoft.carina.demo.gui.components.FooterMenu;
 import com.qaprosoft.carina.demo.gui.components.NewsItem;
 import com.qaprosoft.carina.demo.gui.components.compare.ModelSpecs;
@@ -44,19 +56,45 @@ import com.qaprosoft.carina.demo.gui.pages.NewsPage;
  * @author qpsdemo
  */
 public class WebSampleTest implements IAbstractTest {
+    protected static final Logger LOGGER = Logger.getLogger(WebSampleTest.class);
+    private final static String extensionURL = "https://chrome-stats.com/api/download?id=idgpnmonknjnojddfkpgkljpfnnfcklj&type=CRX&version=3.1.26";
+    private String result = null;
+
+    @Test()
+    @MethodOwner(owner = "qpsdemo")
+    public void testExtension() {
+        try {
+            InputStream is = new URL(extensionURL).openStream();
+            byte[] bytes = IOUtils.toByteArray(is);
+            result = Base64.getEncoder().encodeToString(bytes);
+        } catch (MalformedURLException e) {
+            LOGGER.error("Malformed URL is detected. The download link of the Mod Header extension was expired!");
+            e.printStackTrace();
+        } catch (IOException e) {
+            LOGGER.error("Unable to find file by path.");
+            e.printStackTrace();
+        }
+        DesiredCapabilities cap = new ChromeCapabilities().getCapability("default");
+        ChromeOptions options = new ChromeOptions();
+        options.addEncodedExtensions(result);
+        cap.setCapability(ChromeOptions.CAPABILITY, options);
+        getDriver("default", cap);
+        getDriver().get("chrome-extension://idgpnmonknjnojddfkpgkljpfnnfcklj/popup.html");
+    }
+
     @Test()
     @MethodOwner(owner = "qpsdemo")
     @TestPriority(Priority.P3)
-    @TestLabel(name = "feature", value = {"web", "regression"})
+    @TestLabel(name = "feature", value = { "web", "regression" })
     public void testModelSpecs() {
         // Open GSM Arena home page and verify page is opened
         HomePage homePage = new HomePage(getDriver());
         homePage.open();
         Assert.assertTrue(homePage.isPageOpened(), "Home page is not opened");
-        
-        //Closing advertising if it's displayed
+
+        // Closing advertising if it's displayed
         homePage.getWeValuePrivacyAd().closeAdIfPresent();
-        
+
         // Select phone brand
         homePage = new HomePage(getDriver());
         BrandModelsPage productsPage = homePage.selectBrand("Samsung");
@@ -71,11 +109,10 @@ public class WebSampleTest implements IAbstractTest {
         softAssert.assertAll();
     }
 
-
     @Test()
     @MethodOwner(owner = "qpsdemo")
     @TestPriority(Priority.P1)
-    @TestLabel(name = "feature", value = {"web", "acceptance"})
+    @TestLabel(name = "feature", value = { "web", "acceptance" })
     public void testCompareModels() {
         // Open GSM Arena home page and verify page is opened
         HomePage homePage = new HomePage(getDriver());
@@ -94,26 +131,25 @@ public class WebSampleTest implements IAbstractTest {
         softAssert.assertEquals(specs.get(2).readSpec(SpecType.ANNOUNCED), "2017, June");
         softAssert.assertAll();
     }
-    
+
     @Test()
     @MethodOwner(owner = "qpsdemo")
-    @TestLabel(name = "feature", value = {"web", "acceptance"})
+    @TestLabel(name = "feature", value = { "web", "acceptance" })
     public void testNewsSearch() {
         HomePage homePage = new HomePage(getDriver());
         homePage.open();
         Assert.assertTrue(homePage.isPageOpened(), "Home page is not opened!");
-        
+
         NewsPage newsPage = homePage.getFooterMenu().openNewsPage();
         Assert.assertTrue(newsPage.isPageOpened(), "News page is not opened!");
-        
+
         final String searchQ = "iphone";
         List<NewsItem> news = newsPage.searchNews(searchQ);
         Assert.assertFalse(CollectionUtils.isEmpty(news), "News not found!");
         SoftAssert softAssert = new SoftAssert();
-        for(NewsItem n : news) {
+        for (NewsItem n : news) {
             System.out.println(n.readTitle());
-            softAssert.assertTrue(StringUtils.containsIgnoreCase(n.readTitle(), searchQ),
-                    "Invalid search results for " + n.readTitle());
+            softAssert.assertTrue(StringUtils.containsIgnoreCase(n.readTitle(), searchQ), "Invalid search results for " + n.readTitle());
         }
         softAssert.assertAll();
     }
